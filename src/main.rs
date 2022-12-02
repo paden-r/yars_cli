@@ -1,25 +1,84 @@
-use std::env;
+use std::{env, string};
 use log::info;
 use std::error::Error;
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use env_logger::Env;
 
 
-#[derive(Parser, Debug)]
+#[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
 struct Args {
-    #[clap(short, long)]
-    action: String,
 
-    #[clap(short, long, default_value_t = None)]
-    post_id: u16,
+    #[command(subcommand)]
+    action: Option<Commands>
+}
+
+
+#[derive(Subcommand)]
+enum Commands {
+    Get {
+        #[arg(short, long, default_value_t = 0)]
+        id: u16,
+
+        #[arg(short, long, default_value_t = string::String::from(""))]
+        file_name: String
+    },
+    Add {
+        title: String,
+
+        file_path: String,
+
+        rank: String,
+
+        #[arg(short, long, default_value_t = string::String::from(""))]
+        summary: String
+    },
+
+    Update {
+        id: u16,
+
+        #[arg(short, long, default_value_t = string::String::from(""))]
+        title: String,
+
+        #[arg(short, long, default_value_t = string::String::from(""))]
+        file_path: String,
+
+        #[arg(short, long, default_value_t = string::String::from(""))]
+        rank: String,
+
+        #[arg(short, long, default_value_t = string::String::from(""))]
+        summary: String
+    },
+
+    Delete {
+        id: u16
+    }
 }
 
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     setup_logging()?;
-    let args = Args::parse();
+    let cli = Args::parse();
+
+    match &cli.action {
+        Some(Commands::Get {id, file_name}) => {
+            info!("{:?} {:?}", id, file_name);
+        },
+        Some(Commands::Add {title, file_path, rank, summary}) => {
+            info!("{:?} {:?}", title, file_path);
+            info!("{:?} {:?}", rank, summary);
+        },
+        Some(Commands::Update {id, title, file_path, rank, summary}) => {
+            info!("{:?} {:?}", title, file_path);
+            info!("{:?} {:?}", rank, summary);
+        },
+        Some(Commands::Delete {id}) => {
+            info!("{:?}", id);
+        }
+        None => {}
+    }
+
     Ok(())
 }
 
