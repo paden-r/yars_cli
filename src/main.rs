@@ -16,11 +16,12 @@ struct Args {
 
 #[derive(Subcommand)]
 enum Commands {
+    List {},
     Get {
-        #[arg(short, long, default_value_t = 0)]
+        #[arg(short, long)]
         id: u16,
 
-        #[arg(short, long, default_value_t = string::String::from(""))]
+        #[arg(short, long)]
         file_name: String
     },
     Add {
@@ -62,6 +63,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let cli = Args::parse();
 
     match &cli.action {
+        Some(Commands::List {}) => {
+            info!("Listing all!");
+        }
         Some(Commands::Get {id, file_name}) => {
             info!("{:?} {:?}", id, file_name);
         },
