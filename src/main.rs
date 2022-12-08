@@ -4,6 +4,8 @@ use std::error::Error;
 use clap::{Parser, Subcommand};
 use env_logger::Env;
 
+mod command_handler;
+
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -31,7 +33,6 @@ enum Commands {
 
         rank: String,
 
-        #[arg(short, long, default_value_t = string::String::from(""))]
         summary: String
     },
 
@@ -70,8 +71,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             info!("{:?} {:?}", id, file_name);
         },
         Some(Commands::Add {title, file_path, rank, summary}) => {
-            info!("{:?} {:?}", title, file_path);
-            info!("{:?} {:?}", rank, summary);
+           command_handler::add_post(title.to_owned(), file_path.to_owned(), rank.to_owned(), summary.to_owned()).await;
         },
         Some(Commands::Update {id, title, file_path, rank, summary}) => {
             info!("{:?} {:?}", title, file_path);
