@@ -4,12 +4,13 @@ use jsonwebtoken::{encode, EncodingKey, Header, Algorithm};
 use serde::{Deserialize, Serialize};
 use reqwest::Client;
 use warp::http::HeaderMap;
-use log::info;
+use base64;
+use cli_table::{format::Justify, print_stdout, Table, WithTitle};
 
 #[derive(Debug, Deserialize, Serialize)]
 struct Claims {
     iss: usize,
-    exp: usize
+    exp: usize,
 }
 
 const BEARER: &str = "Bearer ";
@@ -23,7 +24,7 @@ fn create_jwt() -> String {
 
     let claims = Claims {
         exp: expiration as usize,
-        iss: Utc::now().timestamp() as usize
+        iss: Utc::now().timestamp() as usize,
     };
     let jwt_secret_string = env::var("JWT_SECRET").unwrap();
     let jwt_secret = jwt_secret_string.as_bytes();
@@ -37,7 +38,7 @@ struct AddJson {
     title: String,
     post_body: String,
     ranking: String,
-    summary: String
+    summary: String,
 }
 
 fn create_auth_header(token: String) -> HeaderMap {
@@ -47,20 +48,18 @@ fn create_auth_header(token: String) -> HeaderMap {
     request_headers
 }
 
-pub async fn add_post(title: String, file_path: String, rank: String, summary: String){
-
+pub async fn add_post(title: String, file_path: String, rank: String, summary: String) {
     let post_body = fs::read_to_string(file_path).unwrap();
-
-    let payload = AddJson{
+    let encoded_body = base64::encode(post_body);
+    let payload = AddJson {
         title,
-        post_body,
+        post_body: encoded_body,
         ranking: rank,
-        summary
+        summary,
     };
     let http_client = Client::new();
     let token = create_jwt();
     let call_headers = create_auth_header(token.clone());
-    info!("{}", token);
     let post_url = TARGET_URL.to_owned() + "add";
     let _response = http_client
         .post(post_url)
@@ -70,4 +69,39 @@ pub async fn add_post(title: String, file_path: String, rank: String, summary: S
         .await
         .unwrap();
 
+    println!("Success");
+}
+
+#[derive(Debug, PartialEq, Eq, Serialize, Clone, Deserialize, Table)]
+struct Post {
+    #[table(title = "ID", justify = "Justify::Right")]
+    post_id: u16,
+
+    #[table(title = "Create Date")]
+    create_date: String,
+
+    #[table(title = "Title")]
+    title: String,
+
+    #[table(title = "Summary")]
+    summary: String,
+
+    #[table(title = "Ranking")]
+    ranking: String,
+}
+
+pub async fn get_post_list() {
+    let http_client = Client::new();
+    let post_url = TARGET_URL.to_owned() + "posts";
+    let mut response = http_client
+        .get(post_url)
+        .send()
+        .await
+        .unwrap()
+        .json::<Vec<Post>>()
+        .await
+        .unwrap();
+    // println!("{:#?}", response);
+    response.reverse();
+    print_stdout(response.with_title());
 }
