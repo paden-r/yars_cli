@@ -6,11 +6,13 @@ use reqwest::Client;
 use warp::http::HeaderMap;
 use base64;
 use cli_table::{format::Justify, print_stdout, Table, WithTitle};
+use uuid::Uuid;
 
 #[derive(Debug, Deserialize, Serialize)]
 struct Claims {
     iss: usize,
     exp: usize,
+    sub: String
 }
 
 const BEARER: &str = "Bearer ";
@@ -21,10 +23,13 @@ fn create_jwt() -> String {
         .checked_add_signed(chrono::Duration::seconds(60))
         .expect("valid timestamp")
         .timestamp();
+    let request_id = Uuid::new_v4();
+    println!("Request ID: {:?}", request_id);
 
     let claims = Claims {
         exp: expiration as usize,
         iss: Utc::now().timestamp() as usize,
+        sub: request_id.hyphenated().to_string()
     };
     let jwt_secret_string = env::var("JWT_SECRET").unwrap();
     let jwt_secret = jwt_secret_string.as_bytes();
@@ -59,6 +64,7 @@ pub async fn add_post(title: String, file_path: String, rank: String, summary: S
     };
     let http_client = Client::new();
     let token = create_jwt();
+    println!("{}", token);
     let call_headers = create_auth_header(token.clone());
     let post_url = TARGET_URL.to_owned() + "add";
     let _response = http_client
@@ -73,7 +79,7 @@ pub async fn add_post(title: String, file_path: String, rank: String, summary: S
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Clone, Deserialize, Table)]
-struct Post {
+struct PostRow {
     #[table(title = "ID", justify = "Justify::Right")]
     post_id: u16,
 
@@ -98,10 +104,39 @@ pub async fn get_post_list() {
         .send()
         .await
         .unwrap()
-        .json::<Vec<Post>>()
+        .json::<Vec<PostRow>>()
         .await
         .unwrap();
     // println!("{:#?}", response);
     response.reverse();
     print_stdout(response.with_title());
+}
+
+
+#[derive(Debug, PartialEq, Eq, Serialize, Clone, Deserialize)]
+struct PostBody {
+    post_id: u16,
+    create_date: String,
+    title: String,
+    summary: String,
+    ranking: String,
+    bodytext: String
+}
+
+pub async fn get_single_post(post_id: u16, file_path: String) {
+    let http_client = Client::new();
+    let post_url = format!("{}{}{}", TARGET_URL.to_owned(), "posts/", post_id);
+    // let post_url = TARGET_URL.to_owned() + "posts/" ;
+    let mut response = http_client
+        .get(post_url)
+        .send()
+        .await
+        .unwrap()
+        .json::<PostBody>()
+        .await
+        .unwrap();
+    // println!("{:#?}", response);
+    fs::write(file_path, response.bodytext).unwrap();
+    println!("Success");
+
 }

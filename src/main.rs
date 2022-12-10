@@ -19,10 +19,8 @@ struct Args {
 enum Commands {
     List {},
     Get {
-        #[arg(short, long)]
         id: u16,
 
-        #[arg(short, long)]
         file_name: String,
     },
     Add {
@@ -67,7 +65,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             command_handler::get_post_list().await;
         }
         Some(Commands::Get { id, file_name }) => {
-            info!("{:?} {:?}", id, file_name);
+            info!("Getting Single");
+            command_handler::get_single_post(id.to_owned(), file_name.to_owned()).await;
         }
         Some(Commands::Add { title, file_path, rank, summary }) => {
             command_handler::add_post(title.to_owned(), file_path.to_owned(), rank.to_owned(), summary.to_owned()).await;
