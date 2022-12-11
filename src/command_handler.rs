@@ -15,12 +15,20 @@ struct Claims {
     sub: String
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+struct DeleteClaims {
+    iss: usize,
+    exp: usize,
+    sub: String,
+    delete_id: u16
+}
+
 const BEARER: &str = "Bearer ";
 const TARGET_URL: &str = "http://localhost:1024/";
 
 fn create_jwt() -> String {
     let expiration = Utc::now()
-        .checked_add_signed(chrono::Duration::seconds(60))
+        .checked_add_signed(chrono::Duration::seconds(20))
         .expect("valid timestamp")
         .timestamp();
     let request_id = Uuid::new_v4();
@@ -30,6 +38,27 @@ fn create_jwt() -> String {
         exp: expiration as usize,
         iss: Utc::now().timestamp() as usize,
         sub: request_id.hyphenated().to_string()
+    };
+    let jwt_secret_string = env::var("JWT_SECRET").unwrap();
+    let jwt_secret = jwt_secret_string.as_bytes();
+    let header = Header::new(Algorithm::HS512);
+    encode(&header, &claims, &EncodingKey::from_secret(jwt_secret))
+        .map_err(|_| "Failed to encode jwt").unwrap()
+}
+
+fn create_delete_jwt(post_id: u16) -> String {
+    let expiration = Utc::now()
+        .checked_add_signed(chrono::Duration::seconds(20))
+        .expect("valid timestamp")
+        .timestamp();
+    let request_id = Uuid::new_v4();
+    println!("Request ID: {:?}", request_id);
+
+    let claims = DeleteClaims {
+        exp: expiration as usize,
+        iss: Utc::now().timestamp() as usize,
+        sub: request_id.hyphenated().to_string(),
+        delete_id: post_id
     };
     let jwt_secret_string = env::var("JWT_SECRET").unwrap();
     let jwt_secret = jwt_secret_string.as_bytes();
@@ -109,7 +138,7 @@ pub async fn get_post_list() {
         .unwrap();
     // println!("{:#?}", response);
     response.reverse();
-    print_stdout(response.with_title());
+    print_stdout(response.with_title()).unwrap();
 }
 
 
@@ -127,7 +156,7 @@ pub async fn get_single_post(post_id: u16, file_path: String) {
     let http_client = Client::new();
     let post_url = format!("{}{}{}", TARGET_URL.to_owned(), "posts/", post_id);
     // let post_url = TARGET_URL.to_owned() + "posts/" ;
-    let mut response = http_client
+    let response = http_client
         .get(post_url)
         .send()
         .await
@@ -138,5 +167,21 @@ pub async fn get_single_post(post_id: u16, file_path: String) {
     // println!("{:#?}", response);
     fs::write(file_path, response.bodytext).unwrap();
     println!("Success");
+}
 
+pub async fn delete_post(post_id: u16) {
+    let http_client = Client::new();
+    let token = create_delete_jwt(post_id);
+    println!("{}", token);
+    let call_headers = create_auth_header(token.clone());
+    let delete_url = format!("{}{}{}", TARGET_URL.to_owned(), "delete/", post_id);
+    let _response = http_client
+        .delete(delete_url.clone())
+        .headers(call_headers)
+        .send()
+        .await
+        .unwrap();
+
+    println!("{}", delete_url);
+    println!("Success");
 }

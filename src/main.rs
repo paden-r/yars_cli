@@ -1,8 +1,6 @@
-use std::{env, string};
-use log::info;
+use std::string;
 use std::error::Error;
 use clap::{Parser, Subcommand};
-use serde_json::json_expect_expr_comma;
 
 mod command_handler;
 
@@ -61,22 +59,23 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     match &cli.action {
         Some(Commands::List {}) => {
-            info!("Listing all!");
+            println!("Listing all!");
             command_handler::get_post_list().await;
         }
         Some(Commands::Get { id, file_name }) => {
-            info!("Getting Single");
+            println!("Getting Single");
             command_handler::get_single_post(id.to_owned(), file_name.to_owned()).await;
         }
         Some(Commands::Add { title, file_path, rank, summary }) => {
             command_handler::add_post(title.to_owned(), file_path.to_owned(), rank.to_owned(), summary.to_owned()).await;
         }
         Some(Commands::Update { id, title, file_path, rank, summary }) => {
-            info!("{:?} {:?}", title, file_path);
-            info!("{:?} {:?}", rank, summary);
+            println!("{:?} {:?}", title, file_path);
+            println!("{:?} {:?}", rank, summary);
         }
         Some(Commands::Delete { id }) => {
-            info!("{:?}", id);
+            println!("Deleting {:?}", id);
+            command_handler::delete_post(id.to_owned()).await;
         }
         None => {}
     }
